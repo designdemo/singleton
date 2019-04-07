@@ -1,0 +1,97 @@
+单例模式总结：
+1、饿汉式：（静态常量和静态代码块）
+在类加载的时候就立即初始化，并创建单例实例
+优点：没有任何的锁，执行效率高，线程绝对安全，在线程还没出现就已经实例化了，不可能存在线程安全的问题
+缺点：在类加载的时候就立即初始化，不管你用不用都存在与内存中，所以浪费资源
+
+2、懒汉式：
+在不加任何锁的情况下，在多线程环境下，是能创建多个实例的，从而达不到单例的效果
+解决方案 加锁 + if判断：
+（1）synchronized 加在方法上面，synchronized虽然在jdk1.6有所优化但是任然很笨重
+（2）加在方法内部 + 双重检查
+考虑序列化及反射对单例的破坏
+
+静态内部类的单例模式
+这种方式巧妙的兼顾了饿汉式 浪费资源的问题及 synchronized 的性能问题，类静态属性只在第一次加载的时候初始化，jvm
+保证了线程安全，是很流弊的写法，但是防止不了反射的暴力攻击
+
+
+3、注册式：
+枚举式单例使用饿汉式的方式注册单例，所以它是线程安全的
+枚举----常量中去使用，常量就是用来大家共用的
+在jdk中就有对序列化及反射的考虑-----推荐使用枚举的方式创建单例
+
+    public static EnumSingleton valueOf(String name)
+    {
+        return (EnumSingleton)Enum.valueOf(com/singletion/register/EnumSingleton, name);
+    }
+
+    public static final EnumSingleton INSTRANCE;
+    private Object date;
+    private static final EnumSingleton $VALUES[];
+
+    static
+    {
+        INSTRANCE = new EnumSingleton("INSTRANCE", 0);
+        $VALUES = (new EnumSingleton[] {
+            INSTRANCE
+        });
+    }
+
+ 容器式注册单例-----参考spring创建单例的方式
+ public class ContainerSingleton {
+     /**
+      * ConcurrentHashMap 只能保证它的内部是线程安全的
+      * <p>
+      * getBean 方法若是不加锁synchronized，在并发的环境下不能保证单例对象
+      */
+     private static Map<String, Object> ioc = new ConcurrentHashMap<String, Object>();
+
+     private ContainerSingleton() {
+     }
+     public static Object getBean(String className) {
+         synchronized (ContainerSingleton.class) {
+             if (!ioc.containsKey(className)) {
+                 Object obj = null;
+                 try {
+                     obj = Class.forName(className).newInstance();
+                     ioc.put(className, obj);
+                 } catch (Exception e) {
+                     e.printStackTrace();
+                 }
+                 return obj;
+             }
+             return ioc.get(className);
+         }
+     }
+ }
+
+
+ 4、序列化式：
+ 通过重写readResolve保证反序列化不会影响单例实现
+
+ 5、ThreadLocal:
+ 主要保证在同一个线程内，只有一个对象实例
+ public class ThreadLocalSingleton {
+
+     private ThreadLocalSingleton(){}
+
+     private static final ThreadLocal<ThreadLocalSingleton> threadLoal = new ThreadLocal<ThreadLocalSingleton>(){
+         @Override
+         protected ThreadLocalSingleton initialValue() {
+             return new ThreadLocalSingleton();
+         }
+     };
+
+     public static ThreadLocalSingleton  getInstance(){
+         return threadLoal.get();
+     }
+ }
+
+ 注意：破坏单例模式的方式有2种
+ 1、序列化   ------   重写 readResolve 方法
+ 2、反射     ------   在构造器中判断对象如果存在则抛出异常
+
+ 枚举式单例则完全避免了这个问题，推荐使用
+
+
